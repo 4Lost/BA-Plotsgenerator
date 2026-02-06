@@ -45,7 +45,7 @@ def generatePlot():
 
     maxY = getMaxY(datasets)
 
-    colors = ['blue', 'orange', 'green']
+    colors = ['#1976D2', '#C2185B', '#388E3C']
     datasetNames = []
 
     for i, (_, values, name) in enumerate(datasets):
@@ -105,14 +105,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
-
-
-
-
-
-
-
-    
