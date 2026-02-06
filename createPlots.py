@@ -9,7 +9,7 @@ from scipy.stats import gaussian_kde
 # ---------- CONFIG ----------
 N_WORKERS = 12
 FEATURES = [
-    "hydroscales",
+    "hydrophobicity",
     "freeEnergie",
     "stability",
     "volume",
