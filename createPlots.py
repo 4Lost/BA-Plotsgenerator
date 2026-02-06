@@ -18,24 +18,19 @@ FEATURES = [
     "coil",
     "mutability",
 ]
-
-
 OUTPUT_DIR = "plots"
-os.makedirs(OUTPUT_DIR, exist_ok=True)
-
 
 
 # ---------- HELPERS ----------
-def load_feature_values(feature):
+def loadValues(feature):
     fname = f"distribution_scales_{feature}.json"
     with open(fname, "r") as f:
         data = json.load(f)
-    # return both per-sequence values and precomputed stats
+
     return data["perSequence"], data["stats"]
 
 
-
-def print_feature_stats(feature, stats, count):
+def printStats(feature, stats, count):
     print(f"\n=== Feature: {feature} ===")
     print(f"Number of sequences : {count}")
     print(f"Min                 : {stats['min']:.4f}")
@@ -45,30 +40,29 @@ def print_feature_stats(feature, stats, count):
     print(f"Median              : {stats['median']:.4f}")
 
 
-
-def kde_1d(values, num_points=200):
+def generateKDE(values, numPoints=200):
     arr = np.array(values, dtype=float)
+
     if arr.size < 2 or np.all(arr == arr[0]):
-        # Degenerate case: no spread
-        x = np.linspace(arr[0] - 1, arr[0] + 1, num_points)
+        x = np.linspace(arr[0] - 1, arr[0] + 1, numPoints)
         y = np.zeros_like(x)
         return x, y
+    
     kde = gaussian_kde(arr)
-    x_min, x_max = arr.min(), arr.max()
-    x = np.linspace(x_min, x_max, num_points)
+    xMin, xMax = arr.min(), arr.max()
+    x = np.linspace(xMin, xMax, numPoints)
     y = kde(x)
+
     return x, y
 
 
-
-def plot_feature_kde(feature, values, stats):
-    x, y = kde_1d(values)
+def plotKDE(feature, values, stats):
+    x, y = generateKDE(values)
+    m = stats["mean"]
+    s = stats["std_dev"]
 
     plt.figure(figsize=(6, 4))
     plt.plot(x, y, color="steelblue", label="KDE")
-    # mean and std dev lines
-    m = stats["mean"]
-    s = stats["std_dev"]
     plt.axvline(m, color="red", linestyle="--", label="mean")
     plt.axvline(m - s, color="gray", linestyle=":", label="mean ± std")
     plt.axvline(m + s, color="gray", linestyle=":")
@@ -82,23 +76,27 @@ def plot_feature_kde(feature, values, stats):
     plt.close()
 
 
+def normalize(distDict):
+    total = sum(distDict.values())
+    if total == 0:
+        return {k: 0.0 for k in distDict}
+    return {str(k): (v / total) * 100.0 for k, v in distDict.items()}
 
-def load_AA_distribution():
+
+def loadAA():
     if os.path.exists("distribution_AA.json"):
         with open("distribution_AA.json", "r") as f:
             return json.load(f)
 
-    # Fallback: build them from worker files
     from collections import defaultdict
 
     dist = defaultdict(int)
     posDist = defaultdict(lambda: defaultdict(int))
     lenDist = defaultdict(int)
 
-    # distribution
     for fname in glob.glob("worker_*_distribution.jsonl"):
         with open(fname, "r") as f:
-            for line_number, line in enumerate(f, start=1):
+            for lineNumber, line in enumerate(f, start=1):
                 line = line.strip()
                 if not line:
                     continue
@@ -107,13 +105,12 @@ def load_AA_distribution():
                     for aa, cnt in data.items():
                         dist[aa] += cnt
                 except json.JSONDecodeError as e:
-                    print(f"[ERROR] {fname} (distribution) line {line_number}: {line}")
+                    print(f"[ERROR] {fname} (distribution) line {lineNumber}: {line}")
                     raise e
 
-    # positional distribution
     for fname in glob.glob("worker_*_positionalDistribution.jsonl"):
         with open(fname, "r") as f:
-            for line_number, line in enumerate(f, start=1):
+            for lineNumber, line in enumerate(f, start=1):
                 line = line.strip()
                 if not line:
                     continue
@@ -123,13 +120,12 @@ def load_AA_distribution():
                         for aa, cnt in sub.items():
                             posDist[int(pos)][aa] += cnt
                 except json.JSONDecodeError as e:
-                    print(f"[ERROR] {fname} (positional) line {line_number}: {line}")
+                    print(f"[ERROR] {fname} (positional) line {lineNumber}: {line}")
                     raise e
 
-    # length distribution
     for fname in glob.glob("worker_*_lengthDistribution.jsonl"):
         with open(fname, "r") as f:
-            for line_number, line in enumerate(f, start=1):
+            for lineNumber, line in enumerate(f, start=1):
                 line = line.strip()
                 if not line:
                     continue
@@ -138,41 +134,34 @@ def load_AA_distribution():
                     for length, cnt in data.items():
                         lenDist[int(length)] += cnt
                 except json.JSONDecodeError as e:
-                    print(f"[ERROR] {fname} (length) line {line_number}: {line}")
+                    print(f"[ERROR] {fname} (length) line {lineNumber}: {line}")
                     raise e
 
-    def normalize(dist_dict):
-        total = sum(dist_dict.values())
-        if total == 0:
-            return {k: 0.0 for k in dist_dict}
-        return {str(k): (v / total) * 100.0 for k, v in dist_dict.items()}
-
-    # normalize positional distribution per position
-    posDist_norm = {}
+    posDistNorm = {}
     for pos, sub in posDist.items():
         total = sum(sub.values())
         if total == 0:
-            posDist_norm[str(pos)] = {aa: 0.0 for aa in sub}
+            posDistNorm[str(pos)] = {aa: 0.0 for aa in sub}
         else:
-            posDist_norm[str(pos)] = {aa: (cnt / total) * 100.0 for aa, cnt in sub.items()}
+            posDistNorm[str(pos)] = {aa: (cnt / total) * 100.0 for aa, cnt in sub.items()}
 
     # length stats
     lengths = np.array(list(lenDist.keys()), dtype=float)
     counts = np.array(list(lenDist.values()), dtype=float)
-    mean_len = np.average(lengths, weights=counts)
-    variance_len = np.average((lengths - mean_len) ** 2, weights=counts)
-    length_stats = {
+    meanLen = np.average(lengths, weights=counts)
+    varianceLen = np.average((lengths - meanLen) ** 2, weights=counts)
+    lengthStats = {
         "min": int(np.min(lengths)),
         "max": int(np.max(lengths)),
-        "mean": float(mean_len),
-        "std_dev": float(np.sqrt(variance_len)),
+        "mean": float(meanLen),
+        "std_dev": float(np.sqrt(varianceLen)),
     }
 
     result = {
         "lengthKde": {str(k): int(v) for k, v in lenDist.items()},
-        "lengthStats": length_stats,
+        "lengthStats": lengthStats,
         "distribution": normalize(dist),
-        "positionalDistribution": posDist_norm,
+        "positionalDistribution": posDistNorm,
     }
 
     # Save for later reuse
@@ -182,8 +171,7 @@ def load_AA_distribution():
     return result
 
 
-
-def print_AA_stats(aa_json):
+def printAAStats(aa_json):
     print("\n=== Amino acid global distribution (percent) ===")
     dist = aa_json["distribution"]
     for aa in sorted(dist.keys()):
@@ -198,9 +186,9 @@ def print_AA_stats(aa_json):
 
 
 
-def plot_AA_distribution(aa_json):
+def plotAADistribution(aaJson):
     # Global AA distribution barplot (KEEP AS BAR)
-    dist = aa_json["distribution"]
+    dist = aaJson["distribution"]
     aas = sorted(dist.keys())
     vals = [dist[aa] for aa in aas]
 
@@ -214,14 +202,14 @@ def plot_AA_distribution(aa_json):
     plt.close()
 
     # Sequence length KDE (NEW - replaces bar chart)
-    lengthKde = aa_json["lengthKde"]
+    lengthKde = aaJson["lengthKde"]
     lengths = np.array([int(k) for k in lengthKde.keys()], dtype=float)
     counts = np.array(list(lengthKde.values()), dtype=float)
     repeated_lengths = np.repeat(lengths, counts.astype(int))
     
-    stats = aa_json["lengthStats"]
+    stats = aaJson["lengthStats"]
     
-    x, y = kde_1d(repeated_lengths)
+    x, y = generateKDE(repeated_lengths)
     
     plt.figure(figsize=(8, 4))
     plt.plot(x, y, color="seagreen", label="KDE")
@@ -243,26 +231,27 @@ def plot_AA_distribution(aa_json):
 
 # ---------- MAIN ----------
 def main():
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
     print("=== Per-feature stats and plots ===")
     for feature in FEATURES:
         try:
-            per_seq, stats = load_feature_values(feature)
+            per_seq, stats = loadValues(feature)
             if not per_seq:
                 print(f"\n=== Feature: {feature} ===")
                 print("No data found, skipping.")
                 continue
 
             values = list(per_seq.values())
-            print_feature_stats(feature, stats, len(values))
-            plot_feature_kde(feature, values, stats)
+            printStats(feature, stats, len(values))
+            plotKDE(feature, values, stats)
         except FileNotFoundError:
             print(f"\n=== Feature: {feature} ===")
             print("distribution_scales_{feature}.json not found, skipping.")
 
     print("\n=== Amino acid and length stats ===")
-    aa_json = load_AA_distribution()
-    print_AA_stats(aa_json)
-    plot_AA_distribution(aa_json)
+    aa_json = loadAA()
+    printAAStats(aa_json)
+    plotAADistribution(aa_json)
 
     print(f"\nAll plots saved to: {os.path.abspath(OUTPUT_DIR)}")
 
