@@ -6,20 +6,24 @@ import numpy as np
 
 # ---------- HELPERS ----------
 def loadDatasets():
-    jsonFiles = ["UniProt50-surpriseMetric.json", "SCL-surpriseMetric.json", "SCL-UniProt50-surpriseMetric.json"]
-    datasetNames = ['UniProt50', 'SCL', 'SCL over UniProt50'] #TODO search better names
+    jsonFiles = ["UniRef50-surpriseMetric.json", "SCL-surpriseMetric.json", "SCL-UniRef50-surpriseMetric.json"]
+    datasetNames = ['Reference', 'Validation', 'Validation over Reference'] #TODO search better names
     datasets = []
 
     for i, file_path in enumerate(jsonFiles):
+        print("----- " + datasetNames[i] + " -----")
+
         with open(file_path, 'r') as f:
             data = json.load(f)
 
         total = sum(data.values())
 
-        displayValues = []
+        displayValues = []##
         displayLabels = []
 
         for category, value in data.items():
+            print(category + ": " + str((value / total) * 100) + "%")
+
             if category != "ordinary":
                 pct = (value / total) * 100
                 displayValues.append(pct)
@@ -71,8 +75,8 @@ def generatePlot():
     ax.spines['left'].set_linewidth(1.2)
     ax.spines['bottom'].set_linewidth(1.2)
 
-    ax.set_xlabel("Surprise Level", fontsize=12, fontweight='bold')
-    ax.set_ylabel("Percentage of Dataset", fontsize=12, fontweight='bold')
+    ax.set_xlabel("Surprise Level", fontsize=12)
+    ax.set_ylabel("Percentage of Dataset", fontsize=12)
     ax.set_title('Surprise Metric Distribution (excluding ordinary class)', 
                         fontsize=14, fontweight='bold')
     legend_elements = [
@@ -82,7 +86,7 @@ def generatePlot():
     ]
     ax.legend(handles=legend_elements, loc='upper left', 
         bbox_to_anchor=(1.02, 0.98), frameon=False, 
-        fontsize=8, handlelength=1.2, handleheight=1.2)
+        fontsize=10, handlelength=1.2, handleheight=1.2)
 
     plt.tight_layout()
         

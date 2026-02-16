@@ -12,7 +12,7 @@ COLORS = {
     'Beta Sheet': 'green', 
     'Coil': 'green',
     'Free Energy': 'red',
-    'Hydrophobicity': 'yellow',
+    'Hydrophobicity': 'magenta',
     'Mutability': 'grey',
     'Stability': 'brown',
     'Volume': 'blue',
